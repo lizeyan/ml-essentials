@@ -941,12 +941,12 @@ class ArraysDataStream(DataStream):
 
             def get_slice(s):
                 return tuple(
-                    a[self._indices_buffer[s]]
+                    np.copy(a[self._indices_buffer[s]])
                     for a in self.the_arrays
                 )
         else:
             def get_slice(s):
-                return tuple(a[s] for a in self.the_arrays)
+                return tuple(np.copy(a[s]) for a in self.the_arrays)
 
         # now iterator through the mini-batches
         for batch_s in minibatch_slices_iterator(
