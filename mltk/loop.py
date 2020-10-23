@@ -484,9 +484,9 @@ class BaseLoop(metaclass=DocInherit):
 class AfterEveryFewCyclesCallback(object):
 
     loop: 'TrainLoop'
-    fn: Callable[[], None]
+    fn: Callable[['TrainLoop'], None]
 
-    def __init__(self, fn: Callable[[], None], loop: 'TrainLoop'):
+    def __init__(self, fn: Callable[['TrainLoop'], None], loop: 'TrainLoop'):
         self.fn = fn
         self.loop = loop
 
@@ -498,7 +498,7 @@ class AfterEveryFewEpochsCallback(AfterEveryFewCyclesCallback):
 
     epochs: int
 
-    def __init__(self, fn: Callable[[], None], loop: 'TrainLoop', epochs: int):
+    def __init__(self, fn: Callable[['TrainLoop'], None], loop: 'TrainLoop', epochs: int):
         if epochs <= 0 or abs(epochs - int(epochs)) > 1e-6:
             raise ValueError(f'`epochs` must be a positive integer: got {epochs}')
 
@@ -507,14 +507,14 @@ class AfterEveryFewEpochsCallback(AfterEveryFewCyclesCallback):
 
     def __call__(self):
         if self.loop.epoch % self.epochs == 0:
-            return self.fn()
+            return self.fn(self.loop)
 
 
 class AfterEveryFewBatchesCallback(AfterEveryFewCyclesCallback):
 
     batches: int
 
-    def __init__(self, fn: Callable[[], None], loop: 'TrainLoop', batches: int):
+    def __init__(self, fn: Callable[['TrainLoop'], None], loop: 'TrainLoop', batches: int):
         if batches <= 0 or abs(batches - int(batches)) > 1e-6:
             raise ValueError(f'`batches` must be a positive integer: got {batches}')
 
@@ -523,7 +523,7 @@ class AfterEveryFewBatchesCallback(AfterEveryFewCyclesCallback):
 
     def __call__(self):
         if self.loop.batch % self.batches == 0:
-            return self.fn()
+            return self.fn(self.loop)
 
 
 class TrainLoop(BaseLoop):
@@ -585,7 +585,7 @@ class TrainLoop(BaseLoop):
         return self._stage.epoch.total
 
     def run_after_every(self,
-                        fn: Callable[[], None],
+                        fn: Callable[[BaseLoop], None],
                         *,
                         epochs: Optional[int] = None,
                         batches: Optional[int] = None,
