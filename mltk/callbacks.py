@@ -181,7 +181,7 @@ class CallbackList(Sequence[Callback]):
 
     def __eq__(self, other):
         return isinstance(other, CallbackList) and \
-            self._callbacks == other._callbacks
+               self._callbacks == other._callbacks
 
     def __getitem__(self, item):
         return self._callbacks[item]
@@ -952,7 +952,9 @@ class AutoCheckpoint(BaseCheckpointCallback):
                  batch_freq: Optional[int] = None,
                  state_objects: Optional[Mapping[str, StatefulObject]] = None,
                  max_checkpoints_to_keep: Optional[int] = None,
-                 restore_checkpoint: Union[str, bool] = True):
+                 restore_checkpoint: Union[str, bool] = True,
+                 printer=print_with_time
+                 ):
         """
         Construct a new :class:`AutoCheckpoint`.
 
@@ -975,8 +977,8 @@ class AutoCheckpoint(BaseCheckpointCallback):
                 it when train begins.
         """
         not_none_count = (
-            int(interval is not None) + int(epoch_freq is not None) +
-            int(batch_freq is not None)
+                int(interval is not None) + int(epoch_freq is not None) +
+                int(batch_freq is not None)
         )
         if not_none_count != 1:
             raise ValueError('One and only one of `interval`, `epoch_freq` '
@@ -997,6 +999,7 @@ class AutoCheckpoint(BaseCheckpointCallback):
         self.batch_freq = batch_freq
         self.restore_checkpoint = restore_checkpoint
         self.last_checkpoint_time = 0.
+        self.printer = printer
 
     def on_train_begin(self, data: CallbackData):
         if data.stage == self.stage:
@@ -1010,8 +1013,8 @@ class AutoCheckpoint(BaseCheckpointCallback):
 
             if ckpt_path is not None:
                 self.checkpoint_manager.restore(ckpt_path)
-                print_with_time(f'Restored from the previous checkpoint: '
-                                f'{ckpt_path}')
+                self.printer(f'Restored from the previous checkpoint: '
+                             f'{ckpt_path}')
 
             # set `last_checkpoint_time` to the current timestamp, such that
             # the first checkpoint will not be saved immediately after the
@@ -1021,10 +1024,10 @@ class AutoCheckpoint(BaseCheckpointCallback):
     def on_train_epoch_end(self, data: CallbackData):
         if data.stage == self.stage:
             need_checkpoint = (
-                (self.epoch_freq is not None and
-                 data.index % self.epoch_freq == 0) or
-                (self.interval is not None and
-                 data.end_timestamp - self.last_checkpoint_time >= self.interval)
+                    (self.epoch_freq is not None and
+                     data.index % self.epoch_freq == 0) or
+                    (self.interval is not None and
+                     data.end_timestamp - self.last_checkpoint_time >= self.interval)
             )
             if need_checkpoint:
                 self.make_checkpoint()
@@ -1033,13 +1036,13 @@ class AutoCheckpoint(BaseCheckpointCallback):
     def on_train_batch_end(self, data: CallbackData):
         if data.stage == self.stage:
             need_checkpoint = (
-                (self.batch_freq is not None and
-                 data.index % self.batch_freq == 0) or
-                (data.index != self.stage.batch.total and
-                 # if the last batch in an epoch, better to make the checkpoint at
-                 # the end of the epoch
-                 self.interval is not None and
-                 data.end_timestamp - self.last_checkpoint_time >= self.interval)
+                    (self.batch_freq is not None and
+                     data.index % self.batch_freq == 0) or
+                    (data.index != self.stage.batch.total and
+                     # if the last batch in an epoch, better to make the checkpoint at
+                     # the end of the epoch
+                     self.interval is not None and
+                     data.end_timestamp - self.last_checkpoint_time >= self.interval)
             )
             if need_checkpoint:
                 self.make_checkpoint()
@@ -1062,7 +1065,6 @@ def _es_state_property(name: str, default: Any = None):
 
 
 class EarlyStopping(BaseCheckpointCallback):
-
     # should run before the AutoCheckpoint
     priority = AutoCheckpoint.priority - 1
 
@@ -1125,7 +1127,9 @@ class EarlyStopping(BaseCheckpointCallback):
                  max_no_improvement_batches: Optional[int] = None,
                  restore_on_error: bool = False,
                  state_objects: Optional[Mapping[str, StatefulObject]] = None,
-                 max_checkpoints_to_keep: int = 1):
+                 max_checkpoints_to_keep: int = 1,
+                 printer: Callable[[str], Any] = print_with_time,
+                 ):
         """
         Construct a new :class:`EarlyStopping`.
 
@@ -1155,6 +1159,7 @@ class EarlyStopping(BaseCheckpointCallback):
             max_checkpoints_to_keep=max_checkpoints_to_keep,
             save_stage_state=False
         )
+        self.printer = printer
         metric_name = str(metric_name)
 
         if not any(metric_name.startswith(pfx)
@@ -1183,14 +1188,15 @@ class EarlyStopping(BaseCheckpointCallback):
         if self.update_at_equal_metric:
             def wrap_accept_equal(fn):
                 return lambda new, old: fn(new, old) or (new == old)
+
             self._is_metric_better = wrap_accept_equal(self._is_metric_better)
 
     def _need_termination(self):
         return (
-            (self.max_no_improvement_epochs is not None and
-             self.no_improvement_epochs >= self.max_no_improvement_epochs) or
-            (self.max_no_improvement_batches is not None and
-             self.no_improvement_batches >= self.max_no_improvement_batches)
+                (self.max_no_improvement_epochs is not None and
+                 self.no_improvement_epochs >= self.max_no_improvement_epochs) or
+                (self.max_no_improvement_batches is not None and
+                 self.no_improvement_batches >= self.max_no_improvement_batches)
         )
 
     # update the validation metric
@@ -1249,9 +1255,9 @@ class EarlyStopping(BaseCheckpointCallback):
             # first, check whether or not we're interrupted by exception
             err_type = sys.exc_info()[0]
             has_error = (
-                err_type is not None and
-                not issubclass(err_type, (SystemExit, KeyboardInterrupt,
-                                          UserTermination))
+                    err_type is not None and
+                    not issubclass(err_type, (SystemExit, KeyboardInterrupt,
+                                              UserTermination))
             )
 
             # restore from the best checkpoint, if any checkpoint is saved,
@@ -1266,8 +1272,8 @@ class EarlyStopping(BaseCheckpointCallback):
                     )
                 else:
                     self.checkpoint_manager.restore(latest_checkpoint)
-                    print_with_time(f'Restored early-stopping checkpoint from: '
-                                    f'{latest_checkpoint}')
+                    self.printer(f'Restored early-stopping checkpoint from: '
+                                 f'{latest_checkpoint}')
 
 
 # imported for type annotation on `Stage`
