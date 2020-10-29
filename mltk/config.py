@@ -986,9 +986,10 @@ class ConfigLoader(Generic[TConfig]):
                     gather_args(field_info.type_info, prefix + field_name)
                 else:
                     option_string = f'--{prefix}{field_name.replace("_", "-")}'
+                    option_string_ori = f'--{prefix}{field_name}'
                     help_msg = get_field_help(field_info)
                     parser.add_argument(
-                        option_string, help=help_msg,
+                        option_string, option_string_ori, help=help_msg,
                         action=_ConfigAction, type_info=field_info.type_info,
                         default=NOT_SET, metavar=str(field_info.type_info),
                     )
