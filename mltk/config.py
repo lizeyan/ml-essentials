@@ -569,6 +569,9 @@ class Config(metaclass=ConfigMeta):
         attributes = ', '.join(f'{key}={self[key]!r}' for key in sorted(self))
         return f'{name}({attributes})'
 
+    def __str__(self):
+        return '&'.join(f'{key}={self[key]!s}' for key in sorted(self))
+
 
 validate_config = validate_object
 """Shortcut for :func:`check_value`."""
