@@ -572,6 +572,9 @@ class Config(metaclass=ConfigMeta):
     def __str__(self):
         return '&'.join(f'{key}={self[key]!s}' for key in sorted(self))
 
+    def __hash__(self):
+        return hash(f"{self!r}")
+
 
 validate_config = validate_object
 """Shortcut for :func:`check_value`."""
